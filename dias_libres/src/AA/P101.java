@@ -21,9 +21,9 @@ class Triplet{
 	
 	public Integer value; 
 	public Nodes node; 
-	public Integer[] pos; 
+	public ArrayList<Integer>pos; 
 	
-	public Triplet(Integer value, Nodes node, Integer[] pos) {
+	public Triplet(Integer value, Nodes node, ArrayList<Integer> pos) {
 		this.value = value; 
 		this.node = node; 
 		this.pos = pos; 
@@ -46,10 +46,8 @@ class Checker implements Comparator<Triplet>{
 
 public class P101 {
 	
-	//Making a tuple
-	ArrayList<Triplet> tuples_node = new ArrayList<>(); 
 	//Nos definimos una cola de prioridad de la que vamos a ir sacando nodos para expandir ( ES UNA COLA COMPUESTA DE STRUCTS DE FILAS Y COLUMNAS )
-	PriorityQueue<Triplet> pQueue = new PriorityQueue<Triplet>(5, new Checker()); 
+	PriorityQueue<Triplet> pQueue = new PriorityQueue<Triplet>(100, new Checker()); 
 	Integer[] supers_values;
 	Integer[][]supers_products_values;
 	Integer[][] vectorNodos; 
@@ -91,63 +89,77 @@ public class P101 {
 	
 	
 	//Funcion para calcular el valor actual del camino del nodo actual
-	private int calcula_valor(  Integer end  , Integer[] camino    ) {
+	private int calcula_valor( ArrayList<Integer>camino  , int super_last ) {
 		ArrayList<Integer> aSumar = new ArrayList<Integer>(); 
 		int res = 0; 
 		//Miraremos si hay que sumar el desplazamiento
-		for(int i = 0; i< end ; i++ ) { //Para cada uno de los productos
+		for(int i = 0; i< camino.size(); i++ ) { //Para cada uno de los productos, tenemos su super
 			boolean encontrado = false; 
 			for(int j = 0; j<aSumar.size() ; j++ ) {
-				if(aSumar.get(j)== camino[i]) {
+				if(aSumar.get(j)== camino.get(i) ) {
 					encontrado = true; 
 				}
+				
 			}
-			if(encontrado == false ) aSumar.add(camino[i]); 
-			res = res + supers_products_values[camino[i]][i]; 
+			if(encontrado == false ) aSumar.add(supers_values[camino.get(i)]); 
+			res = res + supers_products_values[camino.get(i)][i]; 
 		}
+		boolean last_encontrado = false; 
 		for(int i = 0; i< aSumar.size() ; i++ ) {
+			
 			res = res + aSumar.get(i);
 			
 		}
+		for(int i= 0; i<camino.size(); i++) {
+			if(camino.get(i)== super_last ) {
+				last_encontrado = true; 
+			}
+		}
+		if(!last_encontrado ) {
+			res = res + supers_values[super_last];
+		}
+		
 		return res; 
 	}
 	
 	
 	
-	private void minVal(Integer fila_act,  Integer[] camino ) {
-		for(int i = 0; i<supers_values.length; i ++ ) {
-			if( cota_optimista(fila_act) < best  ) { 
-				if(fila_act == supers_products_values[0].length -1   ) { //Llegamos al final
-					Integer super_copia = camino[fila_act]; 
-					Integer value2 = calcula_valor(camino_result.length - 1, camino ); 
-					camino[fila_act] = i; 
-					Integer value = calcula_valor(camino_result.length - 1, camino );  
-					System.out.println("Entrando con value " + value ); 
-					if(value <best  ) {
-						
-						camino_result = camino ;
-						
-						camino_result[camino.length - 1] = i;
-						vectorNodos[i][fila_act] = value;
-						best = value;  //Modificamos la cota
-						
+	private void minVal(Integer fila_act,  ArrayList<Integer> camino , Integer actual) {
+		Integer min = 10000; 
+		
+		for(int i = 0; i<supers_values.length; i ++ ) { //Miramos cada uno de los supermercados con el camino actual
+			Integer actual_value= calcula_valor(camino , i ) + supers_products_values[i][fila_act]; //Cogemos el valor
+			System.out.println("El best es "+ best);
+			//System.out.println("Estamos entrando con el prod " + fila_act + " Con un valor actual de " + actual_value+ "Y con un camino de " + Arrays.toString(camino.toArray()) );
+			if(  actual_value+ cota_optimista(fila_act) < best ) { 
 				
-					}else {
-						camino[fila_act] = super_copia;
+				if(fila_act == supers_products_values[0].length -1   ) { //Llegamos al final
+					System.out.println("Estamos entrando");
+					for(int j = 0; j<camino.size(); j++ ) {
+						camino_result[i] = camino.get(i);
 					}
+					
+					vectorNodos[i][fila_act] = actual_value;
+					best = actual_value;  //Modificamos la cota
+					
+				
 				}
 				else { 
-					camino[fila_act] = i;
-					Integer value = calcula_valor(fila_act ,camino ); 
-					if(vectorNodos[i][fila_act]> value ){
+					
+					
+					if(vectorNodos[i][fila_act]>= actual_value  ){
 						 //Le metemos el super en el que estamos mirando el producto
 						
-							
-						vectorNodos[i][fila_act] =  value; 
+						
+						vectorNodos[i][fila_act] = actual_value; 
 						//Metemos en la cola como nodo a explorar
-						Nodes node_exp1 = new Nodes(i , fila_act+1 , value);
+						Nodes node_exp1 = new Nodes(i , fila_act+1 , actual_value);
 						//Metemos en la cola el que acabamos de explorar
-						pQueue.add(new Triplet(cota_optimista(fila_act), node_exp1, camino));
+						ArrayList<Integer> camino2 = new ArrayList<Integer>(camino);
+						camino2.add(i);
+						
+						pQueue.add(new Triplet(cota_optimista(fila_act), node_exp1, camino2 ));
+						
 					}
 					
 				}
@@ -166,16 +178,22 @@ public class P101 {
 		//System.out.println("La cota opt es " + cota_optimista(0));
 		Nodes node_exp1 = new Nodes(0,0, 0); //Empezamos en el primer super con el primer producto
 		
-		Integer[] camino = camino_result; //Aqui tengo el camino de los supermercados
-		//Metemos la primera posicion en la cola de prioridad
-		pQueue.add(new Triplet(cota_optimista(0), node_exp1, camino));
+		ArrayList<Integer> camino = new ArrayList<Integer>(); 
+ 		//Metemos la primera posicion en la cola de prioridad
+		pQueue.add(new Triplet(cota_optimista(0), node_exp1, new ArrayList<Integer>()));
+		Integer actuales = 0; 
 		Integer productAct = 0;
+		
 		while(!pQueue.isEmpty()) {
-			minVal(productAct,  camino );
+			minVal(productAct,  camino, actuales);
 			Triplet new_node = pQueue.poll();
+			camino= new_node.pos; //Cogemos el camino que tenía el nodo
 			
-			
-			productAct =new_node.node.prod; //Le pasamos el producto  
+			actuales = new_node.node.pasos;
+			productAct =new_node.node.prod; //Le pasamos el producto 
+			System.out.println("El best es "+ best);
+			System.out.println("Estamos entrando con el prod " + productAct + " Con un valor actual de " + actuales+ " Y con un camino de " + Arrays.toString(camino.toArray()) );
+			 
 			
 			
 		}
